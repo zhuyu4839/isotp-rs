@@ -2,6 +2,11 @@
 name = "isotp-rs"
 version = "0.1.0"
 edition = "2021"
+authors = ["zhuyu <zhuyu4839@gmail.com>"]
+license = "GPL-3.0"
+description = "ISO-TP trait define."
+homepage = "https://github.com/zhuyu4839/isotp-rs"
+repository = "https://github.com/zhuyu4839/isotp-rs"
 
 [dependencies]
 bitflags = "2"
