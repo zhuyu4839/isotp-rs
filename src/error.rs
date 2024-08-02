@@ -1,0 +1,37 @@
+use crate::IsoTpState;
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum Error {
+    #[error("ISO-TP - the pdu(protocol data unit) is empty")]
+    EmptyPdu,
+
+    #[error("ISO-TP - invalid pdu(protocol data unit): {0:?}")]
+    InvalidPdu(Vec<u8>),
+
+    #[error("ISO-TP - invalid parameter: {0}")]
+    InvalidParam(String),
+
+    #[error("ISO-TP - invalid data length: {actual}, expect: {expect}")]
+    InvalidDataLength { actual: usize, expect: usize, },
+
+    #[error("ISO-TP - data length: {0} is out of range")]
+    OutOfRangeLen(usize),
+
+    #[error("ISO-TP - invalid sequence: {actual}, expect: {expect}")]
+    InvalidSequence{ actual: u8, expect: u8, },
+
+    #[error("ISO-TP - mixed frames")]
+    MixFramesError,
+
+    #[error("ISO-TP - timeout when time({value}{unit})")]
+    Timeout { value: u64, unit: &'static str },
+
+    #[error("ISO-TP - error when converting {src:?} to {target:?}")]
+    ConvertError { src: &'static str, target: &'static str, },
+
+    #[error("ISO-TP - state error (expected include {expected:?}, found {found:?})")]
+    StateError { expected: IsoTpState, found: IsoTpState },
+
+    #[error("ISO-TP - context error when {0}")]
+    ContextError(String),
+}
