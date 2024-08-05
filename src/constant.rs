@@ -8,7 +8,13 @@ pub const ISO_TP_MAX_DATA_LENGTH: usize = 0xFFFF_FFFF;
 
 /// start sequece of consecutive.
 pub const CONSECUTIVE_SEQUENCE_START: u8 = 0x01;
+/// MAX st_min(127ms).
+pub const MAX_ST_MIN: u8 = 0x7F;
 
+/// Default P2(50ms) of ISO 14229
+pub const P2_ISO14229: u16 = 50;
+/// Default P2*(5000ms) of ISO 14229
+pub const P2_STAR_ISO14229: u32 = 5_000;
 /// Default value for Separation time
 pub const ST_MIN_ISO15765_2: u8 = 10;
 /// Default value for BlockSize

@@ -2,6 +2,9 @@ use crate::IsoTpState;
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
+    #[error("ISO-TP - device error")]
+    DeviceError,
+
     #[error("ISO-TP - the pdu(protocol data unit) is empty")]
     EmptyPdu,
 
@@ -15,7 +18,7 @@ pub enum Error {
     InvalidDataLength { actual: usize, expect: usize, },
 
     #[error("ISO-TP - data length: {0} is out of range")]
-    OutOfRangeLen(usize),
+    LengthOutOfRange(usize),
 
     #[error("ISO-TP - invalid sequence: {actual}, expect: {expect}")]
     InvalidSequence{ actual: u8, expect: u8, },

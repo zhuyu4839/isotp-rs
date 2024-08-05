@@ -5,6 +5,7 @@ pub mod error;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::{AtomicU8, Ordering};
 use bitflags::bitflags;
+use crate::constant::MAX_ST_MIN;
 use crate::error::Error;
 
 bitflags! {
@@ -99,7 +100,7 @@ pub enum IsoTpEvent<'a> {
     ErrorOccurred(Error),
 }
 
-pub trait IsoTpEventListener: Debug {
+pub trait IsoTpEventListener {
     type Channel;
     fn on_iso_tp_event(&self, channel: Self::Channel, event: IsoTpEvent);
 }
@@ -120,7 +121,17 @@ pub enum IsoTpTimeout {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FrameType {
+    /// | - data length -| - N_PCI bytes - | - note - |
+    ///
+    /// | -      8 ≤   - | -  bit0(3~0) = length  - | - std2004 - |
+    ///
+    /// | -     > 8    - | -  bit0(3~0) = 0; bit1(7~0) = length  - | - std2016 - |
     Single = 0x00,
+    /// | - data length -| - N_PCI bytes - | - note - |
+    ///
+    /// | -  4095 ≤    - | - bit0(3~0) + bit1(7~0) = length - | - std2004 - |
+    ///
+    /// | -  > 4095    - | - bit0(3~0) + bit1(7~0) = 0; byte2~5(7~0) = length - | - std2016 - |
     First = 0x10,
     Consecutive = 0x20,
     FlowControl = 0x30,
@@ -177,30 +188,42 @@ impl TryFrom<u8> for FlowControlState {
     }
 }
 
+impl Into<u8> for FlowControlState {
+    #[inline]
+    fn into(self) -> u8 {
+        self as u8
+    }
+}
+
 /// Flow control frame context.
 #[derive(Debug, Copy, Clone)]
 pub struct FlowControlContext {
     state: FlowControlState,
+    block_size: u8,
     /// Use milliseconds (ms) for values in the range 00 to 7F (0 ms to 127 ms).
+    /// If st_min is 0, set to default value. See [`constant::ST_MIN_ISO15765_2`]
+    /// and [`constant::ST_MIN_ISO15765_4`]
     ///
     /// Use microseconds (μs) for values in the range F1 to F9 (100 μs to 900 μs).
     ///
     /// Values in the ranges 80 to F0 and FA to FF are reserved.
     st_min: u8,
-    suppress_positive: bool,
 }
 
 impl FlowControlContext {
     #[inline]
     pub fn new(
         state: FlowControlState,
+        block_size: u8,
         st_min: u8,
-        suppress_positive: bool,
-    ) -> Result<Self, Error> {
+    ) -> Self {
         match st_min {
             0x80..=0xF0 |
-            0xFA..=0xFF => Err(Error::InvalidParam(format!("`st_min` value({})", st_min))),
-            v => Ok(Self { state, st_min: v, suppress_positive, })
+            0xFA..=0xFF => {
+                log::warn!("ISO-TP - invalid st_min: {}, set to default 127ms", st_min);
+                Self { state, block_size, st_min: MAX_ST_MIN }
+            },
+            v => Self { state, block_size, st_min: v }
         }
     }
     #[inline]
@@ -208,8 +231,8 @@ impl FlowControlContext {
         self.state
     }
     #[inline]
-    pub fn suppress_positive(&self) -> bool {
-        self.suppress_positive
+    pub fn block_size(&self) -> u8 {
+        self.block_size
     }
     #[inline]
     pub fn st_min(&self) -> u8 {
@@ -284,21 +307,20 @@ pub trait IsoTpFrame: Sized + Send {
     /// # Parameters
     ///
     /// * `state` - [`FlowControlState`]
+    /// * `block_size` - the block size
     /// * `st_min` - separation time minimum
-    /// * `suppress_positive` - true if suppress positive else false
     ///
     /// # Returns
     ///
     /// A new `FlowControlFrame` if parameters are valid.
     fn flow_ctrl_frame(
         state: FlowControlState,
-        suppress_positive: bool,
+        block_size: u8,
         st_min: u8,
-    ) -> Result<Self, Error>;
+    ) -> Self;
 
     #[inline]
     fn default_flow_ctrl_frame() -> Self {
-        Self::flow_ctrl_frame(FlowControlState::Continues, true, 0)
-            .expect("ISO-TP: method `flow_ctrl_frame` is invalid")
+        Self::flow_ctrl_frame(FlowControlState::Continues, 0xFF, 10)
     }
 }
