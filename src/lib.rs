@@ -321,6 +321,6 @@ pub trait IsoTpFrame: Sized + Send {
 
     #[inline]
     fn default_flow_ctrl_frame() -> Self {
-        Self::flow_ctrl_frame(FlowControlState::Continues, 0xFF, 10)
+        Self::flow_ctrl_frame(FlowControlState::Continues, 0x00, 10)
     }
 }
