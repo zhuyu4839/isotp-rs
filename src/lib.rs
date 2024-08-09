@@ -95,14 +95,15 @@ impl AtomicState {
 }
 
 #[derive(Debug, Clone)]
-pub enum IsoTpEvent<'a> {
-    DataReceived(&'a [u8]),
+pub enum IsoTpEvent {
+    Wait,
+    DataReceived(Vec<u8>),
     ErrorOccurred(Error),
 }
 
 pub trait IsoTpEventListener {
-    type Channel;
-    fn on_iso_tp_event(&self, channel: Self::Channel, event: IsoTpEvent);
+    fn clear_buffer(&mut self);
+    fn on_iso_tp_event(&mut self, event: IsoTpEvent);
 }
 
 /// ISO-TP timeout type define.
