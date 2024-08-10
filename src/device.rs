@@ -1,19 +1,18 @@
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-pub trait Listener<Channel, Frame> {
-    // type Channel;
-    // type Frame;
+pub trait Listener<Channel, Tx, Rx>: Send {
     /// Callback when frames received.
-    fn on_frame_received(&mut self, channel: Channel, frames: &Vec<Frame>);
+    fn on_frame_received(&mut self, channel: Channel, frames: &Vec<Rx>);
     /// Callback when frame transmit success.
-    fn on_frame_transmitted(&mut self, channel: Channel, frame: &Frame);
+    fn on_frame_transmitted(&mut self, channel: Channel, frame: Tx);
 }
 
 pub trait SyncDevice {
-    type Channel;
-    type Frame;
     type Device;
+    type Channel;
+    type Tx;
+    type Frame;
 
     fn new(device: Self::Device) -> Self;
     /// Get the sender for transmit frame.
@@ -22,7 +21,7 @@ pub trait SyncDevice {
     fn register_listener(
         &mut self,
         name: String,
-        listener: Box<dyn Listener<Self::Channel, Self::Frame>>,
+        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Frame>>,
     ) -> bool;
     /// Unregister transmit and receive frame listener.
     fn unregister_listener(&mut self, name: String) -> bool;
@@ -48,9 +47,10 @@ pub trait SyncDevice {
 
 #[cfg(feature = "async")]
 pub trait AsyncDevice {
-    type Channel;
-    type Frame;
     type Device;
+    type Channel;
+    type Tx;
+    type Frame;
 
     fn new(device: Self::Device) -> Self;
     /// Get the sender for transmit frame.
@@ -59,7 +59,7 @@ pub trait AsyncDevice {
     fn register_listener(
         &mut self,
         name: String,
-        listener: Box<dyn Listener<Self::Channel, Self::Frame>>,
+        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Frame>>,
     ) -> bool;
     /// Unregister transmit and receive frame listener.
     fn unregister_listener(&mut self, name: String) -> bool;
