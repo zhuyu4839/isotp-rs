@@ -1,4 +1,5 @@
 pub mod constant;
+pub mod device;
 pub mod error;
 
 
@@ -138,15 +139,6 @@ pub enum FrameType {
     FlowControl = 0x30,
 }
 
-impl std::ops::BitOr<u8> for FrameType {
-    type Output = u8;
-    #[inline]
-    fn bitor(self, rhs: u8) -> Self::Output {
-        let result: u8 = self.into();
-        result | rhs
-    }
-}
-
 impl Into<u8> for FrameType {
     #[inline]
     fn into(self) -> u8 {
@@ -248,7 +240,7 @@ impl FlowControlContext {
                 // should not enter
                 let message = format!("ISO-TP: got an invalid st_min: {}", self.st_min);
                 log::error!("{}" ,message);
-                panic!("{}", message)   // panic is dengrous
+                panic!("{}", message)   // panic is dangerous
             },
             0xF1..=0xF9 => 100 * (self.st_min & 0x0F) as u32,
         }
