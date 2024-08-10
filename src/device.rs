@@ -10,42 +10,6 @@ pub trait Listener<Channel, Frame> {
     fn on_frame_transmitted(&mut self, channel: Channel, frame: &Frame);
 }
 
-pub trait AsyncDevice {
-    type Channel;
-    type Frame;
-    type Device;
-
-    fn new(device: Self::Device) -> Self;
-    /// Get the sender for transmit frame.
-    fn sender(&self) -> Sender<Self::Frame>;
-    /// Register transmit and receive frame listener.
-    fn register_listener(
-        &mut self,
-        name: String,
-        listener: Box<dyn Listener<Self::Channel, Self::Frame>>,
-    ) -> bool;
-    /// Unregister transmit and receive frame listener.
-    fn unregister_listener(&mut self, name: String) -> bool;
-    /// Unregister all transmit and receive frame listeners.
-    fn unregister_all(&mut self) -> bool;
-    /// Get all transmit and receive frame listener's names.
-    fn listener_names(&self) -> Vec<String>;
-    /// transmit loop.
-    fn async_transmit(device: Arc<Mutex<Self>>,
-                      interval_ms: u64,
-                      stopper: Arc<Mutex<Receiver<()>>>,
-    ) -> impl std::future::Future<Output = ()> + Send;
-    /// receive loop.
-    fn async_receive(device: Arc<Mutex<Self>>,
-                     interval_ms: u64,
-                     stopper: Arc<Mutex<Receiver<()>>>,
-    ) -> impl std::future::Future<Output = ()> + Send;
-    /// start [`Self::async_transmit`] and [`Self::async_receive`]
-    fn async_start(&mut self, interval_ms: u64);
-    /// Close the device and stop transmit and receive loop.
-    fn close(&mut self) -> impl std::future::Future<Output = ()> + Send;
-}
-
 pub trait SyncDevice {
     type Channel;
     type Frame;
@@ -82,3 +46,39 @@ pub trait SyncDevice {
     fn close(&mut self);
 }
 
+#[cfg(feature = "async")]
+pub trait AsyncDevice {
+    type Channel;
+    type Frame;
+    type Device;
+
+    fn new(device: Self::Device) -> Self;
+    /// Get the sender for transmit frame.
+    fn sender(&self) -> Sender<Self::Frame>;
+    /// Register transmit and receive frame listener.
+    fn register_listener(
+        &mut self,
+        name: String,
+        listener: Box<dyn Listener<Self::Channel, Self::Frame>>,
+    ) -> bool;
+    /// Unregister transmit and receive frame listener.
+    fn unregister_listener(&mut self, name: String) -> bool;
+    /// Unregister all transmit and receive frame listeners.
+    fn unregister_all(&mut self) -> bool;
+    /// Get all transmit and receive frame listener's names.
+    fn listener_names(&self) -> Vec<String>;
+    /// transmit loop.
+    fn async_transmit(device: Arc<Mutex<Self>>,
+                      interval_ms: u64,
+                      stopper: Arc<Mutex<Receiver<()>>>,
+    ) -> impl std::future::Future<Output = ()> + Send;
+    /// receive loop.
+    fn async_receive(device: Arc<Mutex<Self>>,
+                     interval_ms: u64,
+                     stopper: Arc<Mutex<Receiver<()>>>,
+    ) -> impl std::future::Future<Output = ()> + Send;
+    /// start [`Self::async_transmit`] and [`Self::async_receive`]
+    fn async_start(&mut self, interval_ms: u64);
+    /// Close the device and stop transmit and receive loop.
+    fn close(&mut self) -> impl std::future::Future<Output = ()> + Send;
+}
