@@ -12,16 +12,16 @@ pub trait SyncDevice {
     type Device;
     type Channel;
     type Tx;
-    type Frame;
+    type Rx;
 
     fn new(device: Self::Device) -> Self;
     /// Get the sender for transmit frame.
-    fn sender(&self) -> Sender<Self::Frame>;
+    fn sender(&self) -> Sender<Self::Rx>;
     /// Register transmit and receive frame listener.
     fn register_listener(
         &mut self,
         name: String,
-        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Frame>>,
+        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Rx>>,
     ) -> bool;
     /// Unregister transmit and receive frame listener.
     fn unregister_listener(&mut self, name: String) -> bool;
@@ -50,16 +50,16 @@ pub trait AsyncDevice {
     type Device;
     type Channel;
     type Tx;
-    type Frame;
+    type Rx;
 
     fn new(device: Self::Device) -> Self;
     /// Get the sender for transmit frame.
-    fn sender(&self) -> Sender<Self::Frame>;
+    fn sender(&self) -> Sender<Self::Rx>;
     /// Register transmit and receive frame listener.
     fn register_listener(
         &mut self,
         name: String,
-        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Frame>>,
+        listener: Box<dyn Listener<Self::Channel, Self::Tx, Self::Rx>>,
     ) -> bool;
     /// Unregister transmit and receive frame listener.
     fn unregister_listener(&mut self, name: String) -> bool;
