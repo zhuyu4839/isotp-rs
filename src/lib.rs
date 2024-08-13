@@ -98,7 +98,7 @@ impl AtomicState {
 #[derive(Debug, Clone)]
 pub enum IsoTpEvent {
     Wait,
-    DataReceived(Vec<u8>),
+    DataReceived(FrameType, Vec<u8>),
     ErrorOccurred(Error),
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "isotp-rs"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license = "GPL-3.0"
