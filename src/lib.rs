@@ -14,12 +14,17 @@ bitflags! {
     #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
     pub struct IsoTpState: u8 {
         const Idle = 0b0000_0000;
+        #[deprecated]
         const WaitSingle = 0b0000_0001;
+        #[deprecated]
         const WaitFirst = 0b0000_0010;
         const WaitFlowCtrl = 0b0000_0100;
+        #[deprecated]
         const WaitData = 0b0000_1000;
-        const ResponsePending = 0b0001_0000;
-        const Sending = 0b0010_0000;
+        const WaitBusy = 0b0001_0000;
+        #[deprecated]
+        const ResponsePending = 0b0010_0000;
+        const Sending = 0b0100_0000;
         const Error = 0b1000_0000;
     }
 }
@@ -98,7 +103,8 @@ impl AtomicState {
 #[derive(Debug, Clone)]
 pub enum IsoTpEvent {
     Wait,
-    DataReceived(FrameType, Vec<u8>),
+    FirstFrameReceived,
+    DataReceived(Vec<u8>),
     ErrorOccurred(Error),
 }
 
@@ -162,8 +168,9 @@ impl TryFrom<u8> for FrameType {
 
 /// Flow control type define.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FlowControlState {
+    #[default]
     Continues = 0x00,
     Wait = 0x01,
     Overload = 0x02,
@@ -189,7 +196,7 @@ impl Into<u8> for FlowControlState {
 }
 
 /// Flow control frame context.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct FlowControlContext {
     state: FlowControlState,
     block_size: u8,
@@ -234,6 +241,7 @@ impl FlowControlContext {
     #[inline]
     pub fn st_min_us(&self) -> u32 {
         match self.st_min {
+            0x00 => 1000 * 10,
             ..=0x7F => 1000 * (self.st_min as u32),
             0x80..=0xF0 |
             0xFA..=0xFF => {
@@ -284,7 +292,6 @@ pub trait IsoTpFrame: Sized + Send {
     /// with a `FirstFrame` and followed by at least one `FlowControlFrame`.
     fn from_data<T: AsRef<[u8]>>(
         data: T,
-        flow_ctrl: Vec<FlowControlContext>,
     ) -> Result<Vec<Self>, Error>;
 
     /// New single frame from data.

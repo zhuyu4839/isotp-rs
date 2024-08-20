@@ -1,5 +1,3 @@
-use crate::IsoTpState;
-
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
     #[error("ISO-TP - device error")]
@@ -32,8 +30,8 @@ pub enum Error {
     #[error("ISO-TP - error when converting {src:?} to {target:?}")]
     ConvertError { src: &'static str, target: &'static str, },
 
-    #[error("ISO-TP - state error (expected include {expected:?}, found {found:?})")]
-    StateError { expected: IsoTpState, found: IsoTpState },
+    #[error("ISO-TP - ECU has overload flow control response")]
+    OverloadFlow,
 
     #[error("ISO-TP - context error when {0}")]
     ContextError(String),
