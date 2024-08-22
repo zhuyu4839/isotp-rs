@@ -12,6 +12,3 @@ repository = "https://github.com/zhuyu4839/isotp-rs"
 bitflags = "2"
 thiserror = "1"
 log = "0"
-
-[features]
-async = []
