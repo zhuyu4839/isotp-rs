@@ -1,6 +1,3 @@
-pub const ISO_TP_MAX_LENGTH_2004: usize = 0xFFF;
-pub const ISO_TP_MAX_LENGTH_2016: usize = 0xFFFF_FFFF;
-
 /// start sequence of consecutive.
 pub const CONSECUTIVE_SEQUENCE_START: u8 = 0x01;
 /// MAX st_min(127ms).

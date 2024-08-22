@@ -12,3 +12,14 @@ repository = "https://github.com/zhuyu4839/isotp-rs"
 bitflags = "2"
 thiserror = "1"
 log = "0"
+
+[dev-dependencies]
+anyhow = "1"
+hex-literal = "0.4"
+
+[features]
+default = ["std2004"]
+
+std2004 = []
+std2016 = []
+can-fd = []
