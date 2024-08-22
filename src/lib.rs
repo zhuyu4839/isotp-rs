@@ -1,5 +1,4 @@
 pub mod constant;
-pub mod device;
 pub mod error;
 
 
