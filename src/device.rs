@@ -1,3 +1,5 @@
+//! ISO-TP device trait define.
+
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -10,6 +12,54 @@ pub trait Listener<Channel, Id, Frame>: Send {
     fn on_frame_received(&mut self, channel: Channel, frames: &[Frame]);
 }
 
+/// The synchronous device trait define
+/// Sync driver of the device implements this trait.
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::sync::{Arc, Mutex, MutexGuard};
+/// use std::sync::mpsc::{Receiver, Sender};
+/// use isotp_rs::can::{Address, SyncCanIsoTp};
+/// use isotp_rs::device::{Listener, SyncDevice};
+///
+/// use isotp_rs::{IsoTpEvent, IsoTpEventListener};
+///
+/// pub struct MyIsoTpEventListener {
+///     // field of struct
+/// }
+///
+/// impl IsoTpEventListener for MyIsoTpEventListener {
+///     // impl functions
+/// }
+///
+/// pub struct MyDevice {
+///     // fields of struct
+/// }
+///
+/// impl SyncDevice for MyDevice {
+///     // impl functions
+/// }
+///
+/// fn main() {
+///     let mut device = MyDevice {};
+///     let listener = MyIsoTpEventListener {};
+///     let address = Address {
+///         tx_id: 0x70,
+///         rx_id: 0x78,
+///         fid: 0x7DF,
+///     };
+///
+///     device.sync_start(100);
+///
+///     let mut isotp = SyncCanIsoTp::new(0, address, device.sender(), Box::new(listener));
+///     device.register_listener("ISO-TP".into(), Box::new(isotp.clone()));
+///
+///     isotp.write(false, vec![0x10, 0x01]).unwrap();
+///
+///     device.close();
+/// }
+/// ```
 pub trait SyncDevice {
     type Device;
     type Channel;
@@ -47,6 +97,52 @@ pub trait SyncDevice {
     fn close(&mut self);
 }
 
+/// The synchronous device trait define
+/// Async driver of the device implements this trait.
+///
+/// # Examples
+///
+/// ```ignore
+/// use std::sync::{Arc, Mutex, MutexGuard};
+/// use std::sync::mpsc::{Receiver, Sender};
+/// use isotp_rs::can::{Address, AsyncCanIsoTp};
+/// use isotp_rs::device::{AsyncDevice, Listener};
+///
+/// use isotp_rs::{IsoTpEvent, IsoTpEventListener};
+///
+/// pub struct MyIsoTpEventListener {
+///     // field of struct
+/// }
+///
+/// impl IsoTpEventListener for MyIsoTpEventListener {
+///     // impl functions
+/// }
+///
+/// pub struct MyDevice {
+///     // fields of struct
+/// }
+///
+/// impl AsyncDevice for MyDevice {
+///     // impl functions
+/// }
+///
+/// async fn main() {
+///     let mut device = MyDevice {};
+///     let listener = MyIsoTpEventListener {};
+///     let address = Address {
+///         tx_id: 0x70,
+///         rx_id: 0x78,
+///         fid: 0x7DF,
+///     };
+///
+///     let mut isotp = AsyncCanIsoTp::new(0, address, device.sender(), Box::new(listener));
+///     device.register_listener("ISO-TP".into(), Box::new(isotp.clone()));
+///
+///     isotp.write(false, vec![0x10, 0x01]).await.unwrap();
+///
+///     device.close();
+/// }
+/// ```
 pub trait AsyncDevice {
     type Device;
     type Channel;

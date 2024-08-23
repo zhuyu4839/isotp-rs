@@ -32,7 +32,8 @@ pub trait Frame {
     fn timestamp(&self) -> u64;
     
     fn set_timestamp(&mut self, value: Option<u64>) -> &mut Self
-        where Self: Sized;
+    where
+        Self: Sized;
 
     /// Prioritizes returning J1939Id if j1939 is true.
     fn id(&self) -> Id;

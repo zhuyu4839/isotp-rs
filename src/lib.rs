@@ -114,15 +114,15 @@ pub trait IsoTpEventListener {
 }
 
 /// ISO-TP timeout type define.
-/// The unit of value is µs.
+/// The unit of value is ms.
 #[derive(Debug, Copy, Clone)]
 pub enum IsoTpTimeout {
-    TimeoutAr { timeout_us: u32 },
-    TimeoutAs { timeout_us: u32 },
-    TimeoutBr { timeout_us: u32 },
-    TimeoutBs { timeout_us: u32 },
-    TimeoutCr { timeout_us: u32 },
-    TimeoutCs { timeout_us: u32 },
+    TimeoutAr { timeout_ms: u32 },
+    TimeoutAs { timeout_ms: u32 },
+    TimeoutBr { timeout_ms: u32 },
+    TimeoutBs { timeout_ms: u32 },
+    TimeoutCr { timeout_ms: u32 },
+    TimeoutCs { timeout_ms: u32 },
 }
 
 /// ISO-TP frame type define.
@@ -131,15 +131,15 @@ pub enum IsoTpTimeout {
 pub enum FrameType {
     /// | - data length -| - N_PCI bytes - | - note - |
     ///
-    /// | -      8 ≤   - | -  bit0(3~0) = length  - | - std2004 - |
+    /// | -     le 8   - | -  bit0(3~0) = length  - | - std2004 - |
     ///
-    /// | -     > 8    - | -  bit0(3~0) = 0; bit1(7~0) = length  - | - std2016 - |
+    /// | -     gt 8    - | -  bit0(3~0) = 0; bit1(7~0) = length  - | - std2016 - |
     Single = 0x00,
     /// | - data length -| - N_PCI bytes - | - note - |
     ///
-    /// | -  4095 ≤    - | - bit0(3~0) + bit1(7~0) = length - | - std2004 - |
+    /// | -  le 4095   - | - bit0(3~0) + bit1(7~0) = length - | - std2004 - |
     ///
-    /// | -  > 4095    - | - bit0(3~0) + bit1(7~0) = 0; byte2~5(7~0) = length - | - std2016 - |
+    /// | -  gt 4095   - | - bit0(3~0) + bit1(7~0) = 0; byte2~5(7~0) = length - | - std2016 - |
     First = 0x10,
     Consecutive = 0x20,
     FlowControl = 0x30,
@@ -268,7 +268,7 @@ pub enum ByteOrder {
 }
 
 /// ISO-TP frame trait define.
-pub trait IsoTpFrame: Sized + Send {
+pub trait IsoTpFrame: Send {
     /// Decode frame from origin data like `02 10 01`.
     ///
     /// # Parameters
@@ -278,7 +278,9 @@ pub trait IsoTpFrame: Sized + Send {
     /// # Return
     ///
     /// A struct that implements [`IsoTpFrame`] if parameters are valid.
-    fn decode<T: AsRef<[u8]>>(data: T) -> Result<Self, Error>;
+    fn decode<T: AsRef<[u8]>>(data: T) -> Result<Self, Error>
+    where
+        Self: Sized;
     /// Encode frame to data.
     ///
     /// # Parameters
@@ -302,9 +304,9 @@ pub trait IsoTpFrame: Sized + Send {
     /// The frames contain either a `SingleFrame` or a multi-frame sequence starting
     ///
     /// with a `FirstFrame` and followed by at least one `FlowControlFrame`.
-    fn from_data<T: AsRef<[u8]>>(
-        data: T,
-    ) -> Result<Vec<Self>, Error>;
+    fn from_data<T: AsRef<[u8]>>(data: T) -> Result<Vec<Self>, Error>
+    where
+        Self: Sized;
 
     /// New single frame from data.
     ///
@@ -313,7 +315,9 @@ pub trait IsoTpFrame: Sized + Send {
     /// # Returns
     ///
     /// A new `SingleFrame` if parameters are valid.
-    fn single_frame<T: AsRef<[u8]>>(data: T) -> Result<Self, Error>;
+    fn single_frame<T: AsRef<[u8]>>(data: T) -> Result<Self, Error>
+    where
+        Self: Sized;
     /// New flow control frame from data.
     ///
     /// # Parameters
@@ -325,14 +329,15 @@ pub trait IsoTpFrame: Sized + Send {
     /// # Returns
     ///
     /// A new `FlowControlFrame` if parameters are valid.
-    fn flow_ctrl_frame(
-        state: FlowControlState,
-        block_size: u8,
-        st_min: u8,
-    ) -> Self;
+    fn flow_ctrl_frame(state: FlowControlState, block_size: u8, st_min: u8) -> Self
+    where
+        Self: Sized;
 
     #[inline]
-    fn default_flow_ctrl_frame() -> Self {
+    fn default_flow_ctrl_frame() -> Self
+    where
+        Self: Sized
+    {
         Self::flow_ctrl_frame(FlowControlState::Continues, 0x00, 10)
     }
 }
