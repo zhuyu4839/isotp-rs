@@ -255,6 +255,18 @@ impl FlowControlContext {
     }
 }
 
+/// byte order define.
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+pub enum ByteOrder {
+    /// Motorola byte order
+    Big,
+    /// Intel byte order
+    #[default]
+    Little,
+    /// The native byte order depends on your CPU
+    Native,
+}
+
 /// ISO-TP frame trait define.
 pub trait IsoTpFrame: Sized + Send {
     /// Decode frame from origin data like `02 10 01`.
