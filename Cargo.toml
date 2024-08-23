@@ -1,6 +1,6 @@
 [package]
 name = "isotp-rs"
-version = "0.1.7"
+version = "0.1.8-alph0"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license = "GPL-3.0"
@@ -13,12 +13,27 @@ bitflags = "2"
 thiserror = "1"
 log = "0"
 
+[dependencies.tokio]
+version = "1"
+features = ["rt-multi-thread", "time"]
+optional = true
+
+[dependencies.bitfield-struct]
+version = "0.8"
+optional = true
+
+[dependencies.paste]
+version = "1"
+optional = true
+
 [dev-dependencies]
 anyhow = "1"
 hex-literal = "0.4"
 
 [features]
 default = ["std2004"]
+
+j1939 = ["bitfield-struct", "paste"]
 
 std2004 = []
 std2016 = []
