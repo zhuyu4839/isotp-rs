@@ -1,10 +1,5 @@
 # ISO-TP
 
-[![LGPL licensed][license-badge]](#license)
-[![Documentation][docs-badge]][docs]
-![last-commit-badge][]
-![contributors-badge][]
-
 ## Overview
 
 **isotp-rs** is dedicated to implementing the generic ISO-TP protocol. ISO-TP (ISO 15765-2) is a transport protocol used in automotive communication.
