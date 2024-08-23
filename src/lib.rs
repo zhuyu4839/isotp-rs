@@ -1,6 +1,7 @@
 pub mod constant;
 pub mod error;
 pub mod can;
+pub mod device;
 
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::{AtomicU8, Ordering};
