@@ -18,9 +18,11 @@ where
             return;
         }
 
-        if id == self.address.tx_id ||
-            id == self.address.fid {
-            self.state_remove(IsoTpState::Sending);
+        if let Ok(address) = self.address.lock() {
+            if id == address.tx_id ||
+                id == address.fid {
+                self.state_remove(IsoTpState::Sending);
+            }
         }
     }
 
@@ -30,32 +32,40 @@ where
             return;
         }
 
-        let rx_id = self.address.rx_id;
-        for frame in frames {
-            if frame.id().into_bits() == rx_id {
-                log::debug!("ISO-TP(CAN async) received: {:?} on {}", frame.data(), channel);
+        let address_id = if let Ok(address) = self.address.lock() {
+            Some((address.tx_id, address.rx_id))
+        }
+        else {
+            None
+        };
 
-                match CanIsoTpFrame::decode(frame.data()) {
-                    Ok(frame) => match frame {
-                        CanIsoTpFrame::SingleFrame { data } => {
-                            self.on_single_frame(data);
-                        }
-                        CanIsoTpFrame::FirstFrame { length, data } => {
-                            self.on_first_frame(length, data);
-                        }
-                        CanIsoTpFrame::ConsecutiveFrame { sequence, data } => {
-                            self.on_consecutive_frame(sequence, data);
-                        },
-                        CanIsoTpFrame::FlowControlFrame(ctx) => {
-                            self.on_flow_ctrl_frame(ctx);
-                        },
-                    },
-                    Err(e) => {
-                        log::warn!("ISO-TP(CAN async) - data convert to frame failed: {}", e);
-                        self.state_append(IsoTpState::Error);
-                        self.iso_tp_event(IsoTpEvent::ErrorOccurred(e));
+        if let Some(address) = address_id {
+            for frame in frames {
+                if frame.id().into_bits() == address.1 {
+                    log::debug!("ISO-TP(CAN async) received: {:?} on {}", frame.data(), channel);
 
-                        break;
+                    match CanIsoTpFrame::decode(frame.data()) {
+                        Ok(frame) => match frame {
+                            CanIsoTpFrame::SingleFrame { data } => {
+                                self.on_single_frame(data);
+                            }
+                            CanIsoTpFrame::FirstFrame { length, data } => {
+                                self.on_first_frame(address.0, length, data);
+                            }
+                            CanIsoTpFrame::ConsecutiveFrame { sequence, data } => {
+                                self.on_consecutive_frame(sequence, data);
+                            },
+                            CanIsoTpFrame::FlowControlFrame(ctx) => {
+                                self.on_flow_ctrl_frame(ctx);
+                            },
+                        },
+                        Err(e) => {
+                            log::warn!("ISO-TP(CAN async) - data convert to frame failed: {}", e);
+                            self.state_append(IsoTpState::Error);
+                            self.iso_tp_event(IsoTpEvent::ErrorOccurred(e));
+
+                            break;
+                        }
                     }
                 }
             }

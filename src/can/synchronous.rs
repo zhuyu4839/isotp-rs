@@ -10,9 +10,9 @@ use crate::error::Error;
 #[derive(Clone)]
 pub struct SyncCanIsoTp<C, F> {
     pub(crate) channel: C,
-    pub(crate) address: Address,
+    pub(crate) address: Arc<Mutex<Address>>,
     pub(crate) sender: Sender<F>,
-    pub(crate) context: IsoTpContext,
+    pub(crate) context: Arc<Mutex<IsoTpContext>>,
     pub(crate) state: Arc<Mutex<IsoTpState>>,
     pub(crate) listener: Arc<Mutex<Box<dyn IsoTpEventListener>>>,
 }
@@ -28,7 +28,7 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
     ) -> Self {
         Self {
             channel,
-            address,
+            address: Arc::new(Mutex::new(address)),
             sender,
             context: Default::default(),
             state: Default::default(),
@@ -36,12 +36,23 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
         }
     }
 
-    pub fn write(&mut self, functional: bool, data: Vec<u8>) -> Result<(), Error> {
+    #[inline]
+    pub fn update_address(&self, address: Address) {
+        if let Ok(mut addr) = self.address.lock() {
+            *addr = address;
+        }
+    }
+
+    pub fn write(&self, functional: bool, data: Vec<u8>) -> Result<(), Error> {
         log::debug!("ISO-TP(CAN sync) - Sending: {:?}", data);
+
         let frames = CanIsoTpFrame::from_data(data)?;
         let frame_len = frames.len();
 
-        let can_id = if functional { self.address.fid } else { self.address.tx_id };
+        let can_id = match self.address.lock() {
+            Ok(address) => if functional { Ok(address.fid) } else { Ok(address.tx_id) },
+            Err(_) => Err(Error::ContextError("can't get address context".into())),
+        }?;
         for (index, frame) in frames.into_iter().enumerate() {
             self.write_waiting(index)?;
             let mut frame = F::from_iso_tp(can_id, frame, None)
@@ -66,17 +77,16 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
     }
 
     #[inline]
-    pub(crate) fn on_single_frame(&mut self, data: Vec<u8>) {
+    pub(crate) fn on_single_frame(&self, data: Vec<u8>) {
         self.iso_tp_event(IsoTpEvent::DataReceived(data));
     }
 
     #[inline]
-    pub(crate) fn on_first_frame(&mut self, length: u32, data: Vec<u8>) {
-        self.context.update_consecutive(length, data);
+    pub(crate) fn on_first_frame(&self, tx_id: u32, length: u32, data: Vec<u8>) {
+        self.update_consecutive(length, data);
 
         let iso_tp_frame = CanIsoTpFrame::default_flow_ctrl_frame();
-
-        match F::from_iso_tp(self.address.tx_id, iso_tp_frame, None) {
+        match F::from_iso_tp(tx_id, iso_tp_frame, None) {
             Some(mut frame) => {
                 frame.set_channel(self.channel.clone());
 
@@ -98,12 +108,12 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
     }
 
     #[inline]
-    pub(crate) fn on_consecutive_frame(&mut self, sequence: u8, data: Vec<u8>) {
-        match self.context.append_consecutive(sequence, data) {
+    pub(crate) fn on_consecutive_frame(&self, sequence: u8, data: Vec<u8>) {
+        match self.append_consecutive(sequence, data) {
             Ok(event) => {
                 match event {
                     IsoTpEvent::DataReceived(_) => {
-                        self.context.reset();
+                        self.context_reset();
                     },
                     _ => {},
                 }
@@ -117,7 +127,7 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
     }
 
     #[inline]
-    pub(crate) fn on_flow_ctrl_frame(&mut self, ctx: FlowControlContext) {
+    pub(crate) fn on_flow_ctrl_frame(&self, ctx: FlowControlContext) {
         match ctx.state() {
             FlowControlState::Continues => {
                 self.state_remove(IsoTpState::WaitBusy | IsoTpState::WaitFlowCtrl);
@@ -134,7 +144,7 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
             }
         }
 
-        self.context.update_flow_ctrl(ctx);
+        self.update_flow_ctrl(ctx);
     }
 
     fn iso_tp_event(&self, event: IsoTpEvent) {
@@ -148,14 +158,21 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
         }
     }
 
-    fn write_waiting(&mut self, index: usize) -> Result<(), Error> {
-        if let Some(ctx) = &self.context.flow_ctrl {
-            if ctx.block_size != 0 &&
-                0 == ctx.block_size as usize % (index + 1) {
-                self.state_append(IsoTpState::WaitFlowCtrl);
-            }
-            sleep(Duration::from_micros(ctx.st_min as u64));
-        }
+    fn write_waiting(&self, index: usize) -> Result<(), Error> {
+        match self.context.lock() {
+            Ok(ctx) => {
+                if let Some(ctx) = &ctx.flow_ctrl {
+                    if ctx.block_size != 0 &&
+                        0 == ctx.block_size as usize % (index + 1) {
+                        self.state_append(IsoTpState::WaitFlowCtrl);
+                    }
+                    sleep(Duration::from_micros(ctx.st_min as u64));
+                }
+
+                Ok(())
+            },
+            Err(_) => Err(Error::ContextError("can't get `context`".into()))
+        }?;
 
         loop {
             if self.state_contains(IsoTpState::Error) {
@@ -171,6 +188,33 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
         }
 
         Ok(())
+    }
+
+    fn update_flow_ctrl(&self, ctx: FlowControlContext) {
+        if let Ok(mut context) = self.context.lock() {
+            context.update_flow_ctrl(ctx);
+        };
+    }
+
+    fn append_consecutive(&self, sequence: u8, data: Vec<u8>) -> Result<IsoTpEvent, Error> {
+        match self.context.lock() {
+            Ok(mut context) => {
+                context.append_consecutive(sequence, data)
+            },
+            Err(_) => Err(Error::ContextError("can't get `context`".into()))
+        }
+    }
+
+    fn update_consecutive(&self, length: u32, data: Vec<u8>) {
+        if let Ok(mut context) = self.context.lock() {
+            context.update_consecutive(length, data);
+        }
+    }
+
+    fn context_reset(&self) {
+        if let Ok(mut context) = self.context.lock() {
+            context.reset();
+        };
     }
 
     #[inline]
