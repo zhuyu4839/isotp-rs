@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::Sender;
 use std::thread::sleep;
 use std::time::Duration;
-use crate::{FlowControlContext, FlowControlState, IsoTpEvent, IsoTpEventListener, IsoTpFrame, IsoTpState, can::{Address, CanIsoTpFrame, context::IsoTpContext, frame::Frame}};
+use crate::{FlowControlContext, FlowControlState, IsoTpEvent, IsoTpEventListener, IsoTpFrame, IsoTpState, can::{Address, CanIsoTpFrame, isotp::context::IsoTpContext, frame::Frame}};
 use crate::error::Error;
 
 #[derive(Clone)]
