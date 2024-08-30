@@ -1,18 +1,15 @@
 mod constant;
 pub use constant::*;
 
+pub mod driver;
+
 pub mod frame;
 pub mod identifier;
 
+pub mod isotp;
+
 #[cfg(feature = "j1939")]
 pub mod j1939;
-
-mod synchronous;
-pub use synchronous::SyncCanIsoTp;
-#[cfg(feature = "tokio")]
-mod asynchronous;
-#[cfg(feature = "tokio")]
-pub use asynchronous::AsyncCanIsoTp;
 
 mod utils;
 mod context;

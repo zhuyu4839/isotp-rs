@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use crate::{IsoTpEvent, IsoTpFrame, IsoTpState, can::CanIsoTpFrame};
-use crate::can::{SyncCanIsoTp, frame::Frame};
+use crate::can::{isotp::SyncCanIsoTp, frame::Frame};
 use crate::device::Listener;
 
 impl<C, Id, F> Listener<C, Id, F> for SyncCanIsoTp<C, F>

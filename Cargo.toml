@@ -33,6 +33,7 @@ hex-literal = "0.4"
 [features]
 default = ["std2004"]
 
+async = []
 j1939 = ["bitfield-struct", "paste"]
 
 std2004 = []
