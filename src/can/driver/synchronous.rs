@@ -72,6 +72,14 @@ where
         listener_names(&self.listeners)
     }
 
+    pub fn listener_callback(&self, name: &str, callback: impl FnOnce(&Box<dyn Listener<C, u32, F>>)) {
+        if let Ok(listeners) = self.listeners.try_lock() {
+            if let Some(listener) = listeners.get(name) {
+                callback(listener);
+            }
+        }
+    }
+
     pub fn sync_transmit(device: MutexGuard<Self>, interval_us: u64, stopper: Arc<Mutex<Receiver<()>>>) {
         sync_util(device, interval_us, stopper, |device| {
             transmit_callback(&device.receiver, &device.device, &device.listeners, None);

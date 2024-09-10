@@ -41,7 +41,7 @@ where
         if let Some(address) = address_id {
             for frame in frames {
                 if frame.id().into_bits() == address.1 {
-                    log::debug!("ISO-TP(CAN async) received: {:?} on {}", frame.data(), channel);
+                    log::debug!("ISO-TP(CAN async) received: {} on channel({})", hex::encode(frame.data()), channel);
 
                     match CanIsoTpFrame::decode(frame.data()) {
                         Ok(frame) => match frame {

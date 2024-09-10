@@ -87,7 +87,8 @@ fn on_messages_util<C, F>(
     channel: C
 )
 where
-    C: Clone
+    F: 'static,
+    C: Clone + 'static
 {
     match listeners.lock() {
         Ok(mut v) => v.values_mut()
@@ -106,7 +107,8 @@ fn on_transmitting_util<C, F>(
     frame: &F
 )
 where
-    C: Clone
+    F: 'static,
+    C: Clone + 'static
 {
     match listeners.lock() {
         Ok(mut v) => v.values_mut()
@@ -125,7 +127,8 @@ fn on_transmitted_util<C, F>(
     channel: C
 )
 where
-    C: Clone,
+    F: 'static,
+    C: Clone + 'static
 {
     match listeners.lock() {
         Ok(mut v) => v.values_mut()
@@ -146,8 +149,8 @@ pub(crate) fn transmit_callback<D, C, F>(
 )
 where
     D: Driver<F = F>,
-    C: Clone + Display,
-    F: Frame<Channel = C> + Display,
+    C: Clone + Display + 'static,
+    F: Frame<Channel = C> + Display + 'static,
 {
     if let Ok(receiver) = receiver.lock() {
         if let Ok(msg) = receiver.try_recv() {
@@ -169,14 +172,17 @@ pub(crate) fn receive_callback<D, C, F>(
     timeout: Option<u32>,
 )
 where
+    F: 'static,
     D: Driver<C = C, F = F>,
-    C: Clone,
+    C: Clone + 'static,
 {
     let channels = device.opened_channels();
     channels.into_iter()
         .for_each(|c| {
             if let Ok(messages) = device.receive(c.clone(), timeout) {
-                on_messages_util(listeners, &messages, c.clone());
+                if !messages.is_empty() {
+                    on_messages_util(listeners, &messages, c.clone());
+                }
             }
         });
 }

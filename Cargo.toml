@@ -1,6 +1,6 @@
 [package]
 name = "isotp-rs"
-version = "0.1.8-beta1"
+version = "0.1.8-beta2"
 edition = "2021"
 authors = ["zhuyu <zhuyu4839@gmail.com>"]
 license = "GPL-3.0"
@@ -12,6 +12,7 @@ repository = "https://github.com/zhuyu4839/isotp-rs"
 bitflags = "2"
 thiserror = "1"
 log = "0"
+hex = "0.4"
 
 [dependencies.tokio]
 version = "1"

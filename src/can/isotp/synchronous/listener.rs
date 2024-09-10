@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::Display;
 use crate::{IsoTpEvent, IsoTpFrame, IsoTpState, can::CanIsoTpFrame};
 use crate::can::{isotp::SyncCanIsoTp, frame::Frame};
@@ -5,9 +6,13 @@ use crate::device::Listener;
 
 impl<C, Id, F> Listener<C, Id, F> for SyncCanIsoTp<C, F>
 where
-    C: Clone + Eq + Display,
+    C: Clone + Eq + Display + 'static,
     Id: PartialEq<u32>,
-    F: Frame<Channel = C> + Clone {
+    F: Frame<Channel = C> + Clone + 'static {
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 
     fn on_frame_transmitting(&mut self, _: C, _: &F) {
 
@@ -41,7 +46,7 @@ where
         if let Some(address) = address_id {
             for frame in frames {
                 if frame.id().into_bits() == address.1 {
-                    log::debug!("ISO-TP(CAN sync) received: {:?} on {}", frame.data(), channel);
+                    log::debug!("ISO-TP(CAN sync) received: {} on channel({})", hex::encode(frame.data()), channel);
 
                     match CanIsoTpFrame::decode(frame.data()) {
                         Ok(frame) => match frame {

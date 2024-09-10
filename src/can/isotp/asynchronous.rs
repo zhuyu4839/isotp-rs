@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::Sender;
 use tokio::time::sleep;
 use std::time::Duration;
-use crate::{FlowControlContext, FlowControlState, IsoTpEvent, IsoTpEventListener, IsoTpFrame, IsoTpState, can::{Address, CanIsoTpFrame, context::IsoTpContext, frame::Frame}};
+use crate::{FlowControlContext, FlowControlState, IsoTpEvent, IsoTpEventListener, IsoTpFrame, IsoTpState, can::{Address, CanIsoTpFrame, isotp::context::IsoTpContext, frame::Frame}};
 use crate::error::Error;
 
 #[derive(Clone)]
@@ -44,7 +44,8 @@ impl<C: Clone, F: Frame<Channel = C>> AsyncCanIsoTp<C, F> {
     }
 
     pub async fn write(&self, functional: bool, data: Vec<u8>) -> Result<(), Error> {
-        log::debug!("ISO-TP(CAN async) - Sending: {:?}", data);
+        self.context_reset();
+        log::debug!("ISO-TP(CAN async) - Sending: {}", hex::encode(&data));
 
         let frames = CanIsoTpFrame::from_data(data)?;
         let frame_len = frames.len();
@@ -78,6 +79,7 @@ impl<C: Clone, F: Frame<Channel = C>> AsyncCanIsoTp<C, F> {
 
     #[inline]
     pub(crate) fn on_single_frame(&self, data: Vec<u8>) {
+        log::debug!("ISO-TP - Received: {}", hex::encode(&data));
         self.iso_tp_event(IsoTpEvent::DataReceived(data));
     }
 
@@ -96,29 +98,21 @@ impl<C: Clone, F: Frame<Channel = C>> AsyncCanIsoTp<C, F> {
                         self.iso_tp_event(IsoTpEvent::FirstFrameReceived);
                     },
                     Err(e) => {
-                        log::warn!("ISO-TP - transmit failed: {:?}", e);
+                        log::warn!("ISO-TP(CAN async) - transmit failed: {:?}", e);
                         self.state_append(IsoTpState::Error);
 
                         self.iso_tp_event(IsoTpEvent::ErrorOccurred(Error::DeviceError));
                     },
                 }
             },
-            None => log::error!("ISO-TP: convert `iso-tp frame` to `can-frame` error"),
+            None => log::error!("ISO-TP(CAN async): convert `iso-tp frame` to `can-frame` error"),
         }
     }
 
     #[inline]
     pub(crate) fn on_consecutive_frame(&self, sequence: u8, data: Vec<u8>) {
         match self.append_consecutive(sequence, data) {
-            Ok(event) => {
-                match event {
-                    IsoTpEvent::DataReceived(_) => {
-                        self.context_reset();
-                    },
-                    _ => {},
-                }
-                self.iso_tp_event(event);
-            },
+            Ok(event) => self.iso_tp_event(event),
             Err(e) => {
                 self.state_append(IsoTpState::Error);
                 self.iso_tp_event(IsoTpEvent::ErrorOccurred(e));
@@ -150,8 +144,8 @@ impl<C: Clone, F: Frame<Channel = C>> AsyncCanIsoTp<C, F> {
     fn iso_tp_event(&self, event: IsoTpEvent) {
         match self.listener.lock() {
             Ok(mut listener) => {
-                // println!("ISO-TP(CAN asyn): Sending iso-tp event: {:?}", event);
-                log::trace!("ISO-TP(CAN asyn): Sending iso-tp event: {:?}", event);
+                // println!("ISO-TP(CAN async): Sending iso-tp event: {:?}", event);
+                log::trace!("ISO-TP(CAN async): Sending iso-tp event: {:?}", event);
                 listener.on_iso_tp_event(event);
             },
             Err(_) => log::warn!("ISO-TP(CAN async): Sending event failed"),
@@ -174,7 +168,7 @@ impl<C: Clone, F: Frame<Channel = C>> AsyncCanIsoTp<C, F> {
             Err(_) => Err(Error::ContextError("can't get `context`".into()))
         }?;
 
-        loop {
+        loop {  // maybe dead loop
             if self.state_contains(IsoTpState::Error) {
                 return Err(Error::DeviceError);
             }
@@ -222,7 +216,7 @@ impl<C: Clone, F: Frame<Channel = C>> AsyncCanIsoTp<C, F> {
         match self.state.lock() {
             Ok(v) => *v & flags != IsoTpState::Idle,
             Err(_) => {
-                log::warn!("ISO-TP: state mutex is poisoned");
+                log::warn!("ISO-TP(CAN async): state mutex is poisoned");
                 false
             },
         }
@@ -239,7 +233,7 @@ impl<C: Clone, F: Frame<Channel = C>> AsyncCanIsoTp<C, F> {
                     *v |= flags;
                 }
             }
-            Err(_) => log::warn!("ISO-TP: state mutex is poisoned"),
+            Err(_) => log::warn!("ISO-TP(CAN async): state mutex is poisoned"),
         }
     }
 
@@ -247,7 +241,7 @@ impl<C: Clone, F: Frame<Channel = C>> AsyncCanIsoTp<C, F> {
     fn state_remove(&self, flags: IsoTpState) {
         match self.state.lock() {
             Ok(mut v) => v.remove(flags),
-            Err(_) => log::warn!("ISO-TP: state mutex is poisoned"),
+            Err(_) => log::warn!("ISO-TP(CAN async): state mutex is poisoned"),
         }
     }
 }

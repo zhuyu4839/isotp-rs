@@ -97,13 +97,10 @@ impl IsoTpFrame for CanIsoTpFrame {
                         Ok(Self::ConsecutiveFrame { sequence, data: Vec::from(&data[1..]) })
                     },
                     FrameType::FlowControl => {
-                        let data1 = data[1];
                         // let suppress_positive = (data1 & 0x80) == 0x80;
-                        let state = FlowControlState::try_from(data1 & 0x7F)?;
-                        let st_min = data[2];
-                        Ok(Self::FlowControlFrame(
-                            FlowControlContext::new(state, data1, st_min)
-                        ))
+                        let state = FlowControlState::try_from(byte0 & 0x0F)?;
+                        let fc = FlowControlContext::new(state, data[1], data[2]);
+                        Ok(Self::FlowControlFrame(fc))
                     },
                 }
             }

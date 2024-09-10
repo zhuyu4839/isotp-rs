@@ -1,6 +1,10 @@
 //! Uniform Device Driver trait
 
-pub trait Listener<Channel, Id, Frame>: Send {
+use std::any::Any;
+
+
+pub trait Listener<Channel, Id, Frame>: Any + Send {
+    fn as_any(&self) -> &dyn Any;
     /// Callback when frame transmitting.
     fn on_frame_transmitting(&mut self, channel: Channel, frame: &Frame);
     /// Callback when frame transmit success.

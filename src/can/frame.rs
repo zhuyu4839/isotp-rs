@@ -11,7 +11,7 @@ pub enum Direct {
 }
 
 /// CAN 2.0
-pub trait Frame {
+pub trait Frame: Send + Sync {
     type Channel: Display;
     
     fn new(id: impl Into<Id>, data: &[u8]) -> Option<Self>
