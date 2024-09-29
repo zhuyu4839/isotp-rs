@@ -20,7 +20,7 @@ features = ["rt-multi-thread", "time"]
 optional = true
 
 [dependencies.bitfield-struct]
-version = "0.8"
+version = "0.9"
 optional = true
 
 [dependencies.paste]
