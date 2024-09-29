@@ -1,5 +1,10 @@
 # ISO-TP
 
+[![Latest version](https://img.shields.io/crates/v/isotp-rs.svg)](https://crates.io/crates/isotp-rs)
+[![Documentation](https://docs.rs/bleasy/badge.svg)](https://docs.rs/isotp-rs)
+![LGPL](https://img.shields.io/badge/license-LGPL-green.svg)
+![MIT](https://img.shields.io/badge/license-MIT-yellow.svg)
+
 ## Overview
 
 **isotp-rs** is dedicated to implementing the generic ISO-TP protocol. ISO-TP (ISO 15765-2) is a transport protocol used in automotive communication.
