@@ -30,8 +30,54 @@ bitflags! {
 }
 
 impl Display for IsoTpState {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:08b}", self.bits())
+        let mut idle = true;
+        let mut first = true;
+        if self.contains(IsoTpState::WaitSingle) {
+            write!(f, "WaitSingle")?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::WaitFirst) {
+            write!(f, "{}", format!("{}WaitFirst", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::WaitFlowCtrl) {
+            write!(f, "{}", format!("{}WaitFlowCtrl", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::WaitData) {
+            write!(f, "{}", format!("{}WaitData", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::WaitBusy) {
+            write!(f, "{}", format!("{}WaitBusy", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::ResponsePending) {
+            write!(f, "{}", format!("{}ResponsePending", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::Sending) {
+            write!(f, "{}", format!("{}Sending", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::Error) {
+            write!(f, "{}", format!("{}Error", if first { "" } else { " | " }))?;
+            idle = false;
+        }
+        if idle {
+            write!(f, "Idle")?;
+        }
+
+        Ok(())
     }
 }
 
