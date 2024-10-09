@@ -4,10 +4,9 @@ use crate::{IsoTpEvent, IsoTpFrame, IsoTpState, can::CanIsoTpFrame};
 use crate::can::{isotp::SyncCanIsoTp, frame::Frame};
 use crate::device::Listener;
 
-impl<C, Id, F> Listener<C, Id, F> for SyncCanIsoTp<C, F>
+impl<C, F> Listener<C, u32, F> for SyncCanIsoTp<C, F>
 where
     C: Clone + Eq + Display + 'static,
-    Id: PartialEq<u32>,
     F: Frame<Channel = C> + Clone + 'static {
 
     fn as_any(&self) -> &dyn Any {
@@ -17,7 +16,8 @@ where
     fn on_frame_transmitting(&mut self, _: C, _: &F) {
 
     }
-    fn on_frame_transmitted(&mut self, channel: C, id: Id) {
+
+    fn on_frame_transmitted(&mut self, channel: C, id: u32) {
         if channel != self.channel {
             return;
         }

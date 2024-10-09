@@ -50,20 +50,21 @@ where
 
     #[inline]
     pub fn register_listener(
-        &mut self,
+        &self,
         name: String,
         listener: Box<dyn Listener<C, u32, F>>,
     ) -> bool {
+        log::debug!("ISO-TP(CAN sync) - register listener {}", name);
         register_listener(&self.listeners, name, listener)
     }
 
     #[inline]
-    pub fn unregister_listener(&mut self, name: String) -> bool {
+    pub fn unregister_listener(&self, name: String) -> bool {
         unregister_listener(&self.listeners, name)
     }
 
     #[inline]
-    pub fn unregister_all(&mut self) -> bool {
+    pub fn unregister_all(&self) -> bool {
         unregister_all(&self.listeners)
     }
 
