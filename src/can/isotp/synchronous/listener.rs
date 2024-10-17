@@ -7,7 +7,7 @@ use crate::device::Listener;
 impl<C, F> Listener<C, u32, F> for SyncCanIsoTp<C, F>
 where
     C: Clone + Eq + Display + 'static,
-    F: Frame<Channel = C> + Clone + 'static {
+    F: Frame<Channel = C> + Clone + Display + 'static {
 
     fn as_any(&self) -> &dyn Any {
         self
@@ -18,6 +18,7 @@ where
     }
 
     fn on_frame_transmitted(&mut self, channel: C, id: u32) {
+        log::trace!("ISO-TP(CAN sync) transmitted: {:04X} from {}", id, channel);
         if channel != self.channel {
             return;
         }
@@ -46,7 +47,7 @@ where
         if let Some(address) = address_id {
             for frame in frames {
                 if frame.id().into_bits() == address.1 {
-                    log::debug!("ISO-TP(CAN sync) received: {} on channel({})", hex::encode(frame.data()), channel);
+                    log::debug!("ISO-TP(CAN sync) received: {}", frame);
 
                     match CanIsoTpFrame::decode(frame.data()) {
                         Ok(frame) => match frame {

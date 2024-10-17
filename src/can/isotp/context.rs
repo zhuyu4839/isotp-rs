@@ -75,7 +75,6 @@ impl IsoTpContext {
         if buff_len >= target_len {
             self.consecutive.buffer.resize(target_len, 0);
             let data = self.consecutive.buffer.clone();
-            log::debug!("ISO-TP - Received: {}", hex::encode(&data));
             Ok(IsoTpEvent::DataReceived(data))
         }
         else {

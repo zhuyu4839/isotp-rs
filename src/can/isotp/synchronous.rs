@@ -1,10 +1,10 @@
 mod listener;
 
-use std::sync::{Arc, Mutex};
-use std::sync::mpsc::Sender;
+use std::sync::{Arc, mpsc::Sender, Mutex};
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use crate::{FlowControlContext, FlowControlState, IsoTpEvent, IsoTpEventListener, IsoTpFrame, IsoTpState, can::{Address, CanIsoTpFrame, isotp::context::IsoTpContext, frame::Frame}};
+use crate::constant::{P2_STAR_ISO14229, TIMEOUT_AS_ISO15765_2, TIMEOUT_CR_ISO15765_2};
 use crate::error::Error;
 
 #[derive(Clone)]
@@ -24,7 +24,7 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
     pub fn new(channel: C,
                address: Address,
                sender: Sender<F>,
-               listener: Box<dyn IsoTpEventListener>
+               listener: Box<dyn IsoTpEventListener>,
     ) -> Self {
         Self {
             channel,
@@ -44,8 +44,9 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
     }
 
     pub fn write(&self, functional: bool, data: Vec<u8>) -> Result<(), Error> {
+        self.state_append(IsoTpState::Idle);
         self.context_reset();
-        log::debug!("ISO-TP(CAN sync) - Sending: {}", hex::encode(&data));
+        log::trace!("ISO-TP(CAN sync) - Sending: {}", hex::encode(&data));
 
         let frames = CanIsoTpFrame::from_data(data)?;
         let frame_len = frames.len();
@@ -54,8 +55,9 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
             Ok(address) => if functional { Ok(address.fid) } else { Ok(address.tx_id) },
             Err(_) => Err(Error::ContextError("can't get address context".into())),
         }?;
-        for (index, frame) in frames.into_iter().enumerate() {
-            self.write_waiting(index)?;
+        let mut need_flow_ctrl = frame_len > 1;
+        let mut index = 0;
+        for frame in frames {
             let mut frame = F::from_iso_tp(can_id, frame, None)
                 .ok_or(Error::ConvertError {
                     src: "iso-tp frame",
@@ -63,10 +65,12 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
                 })?;
             frame.set_channel(self.channel.clone());
 
-            if 0 == index && 1 < frame_len {
+            if need_flow_ctrl {
+                need_flow_ctrl = false;
                 self.state_append(IsoTpState::Sending | IsoTpState::WaitFlowCtrl);
             }
             else {
+                self.write_waiting(&mut index)?;
                 self.state_append(IsoTpState::Sending);
             }
             self.sender.send(frame)
@@ -81,7 +85,6 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
 
     #[inline]
     pub(crate) fn on_single_frame(&self, data: Vec<u8>) {
-        log::debug!("ISO-TP - Received: {}", hex::encode(&data));
         self.iso_tp_event(IsoTpEvent::DataReceived(data));
     }
 
@@ -149,20 +152,32 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
         match self.listener.lock() {
             Ok(mut listener) => {
                 // println!("ISO-TP(CAN sync): Sending iso-tp event: {:?}", event);
-                log::trace!("ISO-TP(CAN sync): Sending iso-tp event: {:?}", event);
+                match &event {
+                    IsoTpEvent::DataReceived(data) => {
+                        log::debug!("ISO-TP - Received: {}", hex::encode(data));
+                    },
+                    IsoTpEvent::ErrorOccurred(_) =>
+                        log::warn!("ISO-TP(CAN sync): Sending iso-tp event: {:?}", event),
+                    _ => log::trace!("ISO-TP(CAN sync): Sending iso-tp event: {:?}", event),
+                }
                 listener.on_iso_tp_event(event);
             },
             Err(_) => log::warn!("ISO-TP(CAN async): Sending event failed"),
         }
     }
 
-    fn write_waiting(&self, index: usize) -> Result<(), Error> {
+    fn write_waiting(&self, index: &mut usize) -> Result<(), Error> {
         match self.context.lock() {
             Ok(ctx) => {
                 if let Some(ctx) = &ctx.flow_ctrl {
-                    if ctx.block_size != 0 &&
-                        0 == (index + 1) % ctx.block_size as usize {
-                        self.state_append(IsoTpState::WaitFlowCtrl);
+                    if ctx.block_size != 0 {
+                        if (*index + 1) == ctx.block_size as usize {
+                            *index = 0;
+                            self.state_append(IsoTpState::WaitFlowCtrl);
+                        }
+                        else {
+                            *index += 1;
+                        }
                     }
                     sleep(Duration::from_micros(ctx.st_min as u64));
                 }
@@ -172,13 +187,26 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
             Err(_) => Err(Error::ContextError("can't get `context`".into()))
         }?;
 
-        loop {  // maybe dead loop
+        let start = Instant::now();
+        loop {
             if self.state_contains(IsoTpState::Error) {
                 return Err(Error::DeviceError);
             }
 
-            if self.state_contains(IsoTpState::Sending | IsoTpState::WaitBusy | IsoTpState::WaitFlowCtrl) {
-                sleep(Duration::from_micros(10));
+            if self.state_contains(IsoTpState::Sending) {
+                if start.elapsed() > Duration::from_millis(TIMEOUT_AS_ISO15765_2 as u64) {
+                    return Err(Error::Timeout { value: TIMEOUT_AS_ISO15765_2 as u64, unit: "ms" });
+                }
+            }
+            else if self.state_contains(IsoTpState::WaitBusy) {
+                if start.elapsed() > Duration::from_millis(P2_STAR_ISO14229 as u64) {
+                    return Err(Error::Timeout { value: P2_STAR_ISO14229 as u64, unit: "ms" });
+                }
+            }
+            else if self.state_contains(IsoTpState::WaitFlowCtrl) {
+                if start.elapsed() > Duration::from_millis(TIMEOUT_CR_ISO15765_2 as u64) {
+                    return Err(Error::Timeout { value: TIMEOUT_CR_ISO15765_2 as u64, unit: "ms" });
+                }
             }
             else {
                 break;
@@ -227,14 +255,16 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
     fn state_append(&self, flags: IsoTpState) {
         match self.state.lock() {
             Ok(mut v) => {
-                if flags.contains(IsoTpState::Error) {
+                if flags == IsoTpState::Idle {
+                    *v = IsoTpState::Idle;
+                } else if flags.contains(IsoTpState::Error) {
                     *v = IsoTpState::Error;
                 }
                 else {
                     *v |= flags;
                 }
 
-                log::debug!("ISO-TP(CAN sync): current state(state append): {}", *v);
+                log::trace!("ISO-TP(CAN sync): current state(state append): {}", *v);
             }
             Err(_) => log::warn!("ISO-TP(CAN sync): state mutex is poisoned when appending"),
         }
@@ -245,7 +275,7 @@ impl<C: Clone, F: Frame<Channel = C>> SyncCanIsoTp<C, F> {
         match self.state.lock() {
             Ok(mut v) => {
                 v.remove(flags);
-                log::debug!("ISO-TP(CAN sync): current state(state remove): {}", *v);
+                log::trace!("ISO-TP(CAN sync): current state(state remove): {}", *v);
             },
             Err(_) =>log::warn!("ISO-TP(CAN sync): state mutex is poisoned when removing"),
         }

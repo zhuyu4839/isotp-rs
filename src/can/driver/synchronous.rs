@@ -142,10 +142,11 @@ where
 }
 
 #[inline]
-fn sync_util<D, C, F>(device: MutexGuard<SyncCan<D, C, F>>,
-             interval: u64,
-             stopper: Arc<Mutex<Receiver<()>>>,
-             callback: fn(&MutexGuard<SyncCan<D, C, F>>)
+fn sync_util<D, C, F>(
+    device: MutexGuard<SyncCan<D, C, F>>,
+    interval: u64,
+    stopper: Arc<Mutex<Receiver<()>>>,
+    callback: fn(&MutexGuard<SyncCan<D, C, F>>)
 )
 where D: Driver<C = C, F = F> + Clone + 'static,
       C: Clone + Display + 'static,
@@ -157,11 +158,13 @@ where D: Driver<C = C, F = F> + Clone + 'static,
         }
         else {
             log::info!("SyncCAN - exit sync receive.");
+            break;
         }
 
         if let Ok(stopper) = stopper.lock() {
             if let Ok(()) = stopper.try_recv() {
-                break
+                log::info!("SyncCAN - stop sync receive.");
+                break;
             }
         }
 
