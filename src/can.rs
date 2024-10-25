@@ -99,7 +99,7 @@ impl IsoTpFrame for CanIsoTpFrame {
                     FrameType::FlowControl => {
                         // let suppress_positive = (data1 & 0x80) == 0x80;
                         let state = FlowControlState::try_from(byte0 & 0x0F)?;
-                        let fc = FlowControlContext::new(state, data[1], data[2]);
+                        let fc = FlowControlContext::new(state, data[1], data[2])?;
                         Ok(Self::FlowControlFrame(fc))
                     },
                 }
@@ -147,10 +147,10 @@ impl IsoTpFrame for CanIsoTpFrame {
     fn flow_ctrl_frame(state: FlowControlState,
                        block_size: u8,
                        st_min: u8,
-    ) -> Self {
-        Self::FlowControlFrame(
-            FlowControlContext::new(state, block_size, st_min)
-        )
+    ) -> Result<Self, Error> {
+        Ok(Self::FlowControlFrame(
+            FlowControlContext::new(state, block_size, st_min)?
+        ))
     }
 }
 

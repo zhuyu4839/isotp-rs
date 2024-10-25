@@ -50,20 +50,21 @@ where
 
     #[inline]
     pub fn register_listener(
-        &mut self,
+        &self,
         name: String,
         listener: Box<dyn Listener<C, u32, F>>,
     ) -> bool {
+        log::debug!("ISO-TP(CAN sync) - register listener {}", name);
         register_listener(&self.listeners, name, listener)
     }
 
     #[inline]
-    pub fn unregister_listener(&mut self, name: String) -> bool {
+    pub fn unregister_listener(&self, name: String) -> bool {
         unregister_listener(&self.listeners, name)
     }
 
     #[inline]
-    pub fn unregister_all(&mut self) -> bool {
+    pub fn unregister_all(&self) -> bool {
         unregister_all(&self.listeners)
     }
 
@@ -73,7 +74,7 @@ where
     }
 
     pub fn listener_callback(&self, name: &str, callback: impl FnOnce(&Box<dyn Listener<C, u32, F>>)) {
-        if let Ok(listeners) = self.listeners.try_lock() {
+        if let Ok(listeners) = self.listeners.lock() {
             if let Some(listener) = listeners.get(name) {
                 callback(listener);
             }
@@ -141,10 +142,11 @@ where
 }
 
 #[inline]
-fn sync_util<D, C, F>(device: MutexGuard<SyncCan<D, C, F>>,
-             interval: u64,
-             stopper: Arc<Mutex<Receiver<()>>>,
-             callback: fn(&MutexGuard<SyncCan<D, C, F>>)
+fn sync_util<D, C, F>(
+    device: MutexGuard<SyncCan<D, C, F>>,
+    interval: u64,
+    stopper: Arc<Mutex<Receiver<()>>>,
+    callback: fn(&MutexGuard<SyncCan<D, C, F>>)
 )
 where D: Driver<C = C, F = F> + Clone + 'static,
       C: Clone + Display + 'static,
@@ -156,11 +158,13 @@ where D: Driver<C = C, F = F> + Clone + 'static,
         }
         else {
             log::info!("SyncCAN - exit sync receive.");
+            break;
         }
 
         if let Ok(stopper) = stopper.lock() {
             if let Ok(()) = stopper.try_recv() {
-                break
+                log::info!("SyncCAN - stop sync receive.");
+                break;
             }
         }
 

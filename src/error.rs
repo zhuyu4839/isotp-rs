@@ -18,6 +18,9 @@ pub enum Error {
     #[error("ISO-TP - data length: {0} is out of range")]
     LengthOutOfRange(usize),
 
+    #[error("ISO-TP - invalid st_min: {0:02X}")]
+    InvalidStMin(u8),
+
     #[error("ISO-TP - invalid sequence: {actual}, expect: {expect}")]
     InvalidSequence{ actual: u8, expect: u8, },
 

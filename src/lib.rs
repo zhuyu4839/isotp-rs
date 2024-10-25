@@ -6,7 +6,6 @@ pub mod device;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::atomic::{AtomicU8, Ordering};
 use bitflags::bitflags;
-use crate::constant::MAX_ST_MIN;
 use crate::error::Error;
 
 bitflags! {
@@ -30,8 +29,54 @@ bitflags! {
 }
 
 impl Display for IsoTpState {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:08b}", self.bits())
+        let mut idle = true;
+        let mut first = true;
+        if self.contains(IsoTpState::WaitSingle) {
+            write!(f, "WaitSingle")?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::WaitFirst) {
+            write!(f, "{}", format!("{}WaitFirst", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::WaitFlowCtrl) {
+            write!(f, "{}", format!("{}WaitFlowCtrl", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::WaitData) {
+            write!(f, "{}", format!("{}WaitData", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::WaitBusy) {
+            write!(f, "{}", format!("{}WaitBusy", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::ResponsePending) {
+            write!(f, "{}", format!("{}ResponsePending", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::Sending) {
+            write!(f, "{}", format!("{}Sending", if first { "" } else { " | " }))?;
+            idle = false;
+            first = false;
+        }
+        if self.contains(IsoTpState::Error) {
+            write!(f, "{}", format!("{}Error", if first { "" } else { " | " }))?;
+            idle = false;
+        }
+        if idle {
+            write!(f, "Idle")?;
+        }
+
+        Ok(())
     }
 }
 
@@ -109,6 +154,7 @@ pub enum IsoTpEvent {
 }
 
 pub trait IsoTpEventListener {
+    fn from_buffer(&mut self) -> Option<IsoTpEvent>;
     fn clear_buffer(&mut self);
     fn on_iso_tp_event(&mut self, event: IsoTpEvent);
 }
@@ -216,14 +262,11 @@ impl FlowControlContext {
         state: FlowControlState,
         block_size: u8,
         st_min: u8,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         match st_min {
             0x80..=0xF0 |
-            0xFA..=0xFF => {
-                log::warn!("ISO-TP - invalid st_min: {}, set to default 127ms", st_min);
-                Self { state, block_size, st_min: MAX_ST_MIN }
-            },
-            v => Self { state, block_size, st_min: v }
+            0xFA..=0xFF => Err(Error::InvalidStMin(st_min)),
+            v => Ok(Self { state, block_size, st_min: v }),
         }
     }
     #[inline]
@@ -241,7 +284,7 @@ impl FlowControlContext {
     #[inline]
     pub fn st_min_us(&self) -> u32 {
         match self.st_min {
-            0x00 => 1000 * 10,
+            // 0x00 => 1000 * 10,
             ..=0x7F => 1000 * (self.st_min as u32),
             0x80..=0xF0 |
             0xFA..=0xFF => {
@@ -329,7 +372,7 @@ pub trait IsoTpFrame: Send {
     /// # Returns
     ///
     /// A new `FlowControlFrame` if parameters are valid.
-    fn flow_ctrl_frame(state: FlowControlState, block_size: u8, st_min: u8) -> Self
+    fn flow_ctrl_frame(state: FlowControlState, block_size: u8, st_min: u8) -> Result<Self, Error>
     where
         Self: Sized;
 
@@ -339,5 +382,6 @@ pub trait IsoTpFrame: Send {
         Self: Sized
     {
         Self::flow_ctrl_frame(FlowControlState::Continues, 0x00, 10)
+            .unwrap()
     }
 }
