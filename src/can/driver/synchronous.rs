@@ -74,7 +74,7 @@ where
     }
 
     pub fn listener_callback(&self, name: &str, callback: impl FnOnce(&Box<dyn Listener<C, u32, F>>)) {
-        if let Ok(listeners) = self.listeners.try_lock() {
+        if let Ok(listeners) = self.listeners.lock() {
             if let Some(listener) = listeners.get(name) {
                 callback(listener);
             }
