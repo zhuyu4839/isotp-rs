@@ -1,3 +1,5 @@
+# This project has become part of [ecu-proto-rs](https://github.com/zhuyu4839/ecu-proto-rs)
+
 # ISO-TP
 
 [![Latest version](https://img.shields.io/crates/v/isotp-rs.svg)](https://crates.io/crates/isotp-rs)
